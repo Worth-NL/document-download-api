@@ -64,7 +64,7 @@ RUN python -m compileall . && \
 ENTRYPOINT [ "/home/vcap/app/entrypoint.sh" ]
 
 ##### Test Image ##############################################################
-FROM production as test
+FROM production AS test
 
 USER root
 RUN echo "Install OS dependencies for test build" \
@@ -90,7 +90,7 @@ COPY --from=python_build --chown=notify:notify /opt/venv /opt/venv
 
 # Install dev/test requirements
 COPY --chown=notify:notify Makefile requirements_nl_test.txt ./
-RUN make bootstrap
+RUN make bootstrap-nl
 
 # Copy from the real world, one dir up (project root) into the environment's current working directory
 # Docker will rebuild from here down every time.
