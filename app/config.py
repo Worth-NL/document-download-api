@@ -99,7 +99,57 @@ class Development(Config):
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
 
 
+################
+### NotifyNL ###
+################
+NL_PREFIX = "notifynl"
+
+
+class ConfigNL(Config):
+    NOTIFY_APP_NAME = "document-download-api"
+
+
+class DevNL(ConfigNL):
+    NOTIFY_ENVIRONMENT = "development"
+
+    DEBUG = True
+    NOTIFY_REQUEST_LOG_LEVEL = "DEBUG"
+
+    DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
+
+
+class TestNL(ConfigNL):
+    NOTIFY_ENVIRONMENT = "test"
+
+    DEBUG = True
+    NOTIFY_REQUEST_LOG_LEVEL = "DEBUG"
+
+    DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
+
+
+class AccNL(ConfigNL):
+    NOTIFY_ENVIRONMENT = "acceptance"
+
+    DEBUG = False
+    NOTIFY_REQUEST_LOG_LEVEL = "INFO"
+
+    DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
+
+
+class ProdNL(ConfigNL):
+    NOTIFY_ENVIRONMENT = "production"
+
+    DEBUG = False
+    NOTIFY_REQUEST_LOG_LEVEL = "ERROR"
+
+    DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
+
+
 configs = {
-    "test": Test,
     "development": Development,
+    "devnl": DevNL,
+    "test": Test,
+    "testnl": TestNL,
+    "acceptance": AccNL,
+    "production": ProdNL
 }
