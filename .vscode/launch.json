@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DD-API",
+      "type": "debugpy",
+      "request": "launch",
+      "envFile": "${workspaceFolder}/.env",
+      "module": "flask",
+      "args": [
+        "run",
+        "--port",
+        "7000",
+        "--debug"
+      ],
+      "consoleName": "DD-API",
+      "autoStartBrowser": false,
+      "preLaunchTask": "Install DD-API local notifynl-utils"
+    }
+  ]
+}

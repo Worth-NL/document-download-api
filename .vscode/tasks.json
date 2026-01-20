@@ -2,9 +2,20 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Generate DD-API version file",
+            "type": "shell",
+            "command": "make generate-version-file",
+            "problemMatcher": [],
+            "presentation": {
+                "showReuseMessage": false,
+                "close": true
+            }
+        },
+        {
             "label": "Install DD-API python requirements",
             "type": "shell",
             "command": "uv pip install -r requirements_nl_test.txt",
+            "dependsOn": ["Generate DD-API version file"],
             "problemMatcher": [],
             "presentation": {
                 "showReuseMessage": false,
@@ -20,7 +31,7 @@
             "label": "Install DD-API local notifynl-utils",
             "type": "shell",
             "command": "uv pip uninstall notifynl-utils && uv pip install -e ../notifynl-utils",
-            "dependsOn": ["Install API Python requirements"],
+            "dependsOn": ["Install DD-API python requirements"],
             "problemMatcher": [],
             "presentation": {
                 "showReuseMessage": false,
@@ -30,17 +41,6 @@
                 "env": {
                     "UV_LINK_MODE": "copy"
                 }
-            }
-        },
-        {
-            "label": "Generate DD-API version file",
-            "type": "shell",
-            "command": "make generate-version-file",
-            "dependsOn": ["Install local notifynl-utils"],
-            "problemMatcher": [],
-            "presentation": {
-                "showReuseMessage": false,
-                "close": true
             }
         }
     ]
