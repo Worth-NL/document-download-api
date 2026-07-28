@@ -94,6 +94,12 @@ class DevNL(ConfigNL):
 
     DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
 
+    # ANTIVIRUS_ENABLED=0 in .env has no effect on its own -- Config.ANTIVIRUS_ENABLED
+    # is a hardcoded True, not env-var-driven, so DevNL must override it explicitly
+    # (matching upstream's own, NL-unused Development class) or every upload always
+    # calls the real ClamAV-backed notifications-antivirus service.
+    ANTIVIRUS_ENABLED = False
+
 
 class TestNL(ConfigNL):
     NOTIFY_ENVIRONMENT = "test"
