@@ -129,8 +129,7 @@ class ProdNL(ConfigNL):
 
 
 configs = {
-    "development": Development,
-    "devnl": DevNL,
+    "development": DevNL,
     "test": Test,
     "testnl": TestNL,
     "acceptance": AccNL,
