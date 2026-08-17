@@ -94,6 +94,14 @@ class DevNL(ConfigNL):
 
     DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
 
+    # Same gap as ANTIVIRUS_ENABLED below: upstream's (NL-unused) Development
+    # class hardcodes a dev SECRET_KEY, while Config only reads it from the
+    # environment and the local .env doesn't set one. Without it Flask's
+    # get_signing_serializer() returns None, so sign_service_and_document_id
+    # raises AttributeError and confirm-email-address authentication 500s.
+    # Env still wins, so deployed configs keep supplying a real secret.
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-notify-secret-key")
+
     # ANTIVIRUS_ENABLED=0 in .env has no effect on its own -- Config.ANTIVIRUS_ENABLED
     # is a hardcoded True, not env-var-driven, so DevNL must override it explicitly
     # (matching upstream's own, NL-unused Development class) or every upload always
