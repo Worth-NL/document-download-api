@@ -5,9 +5,12 @@ from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlencode
 
 import boto3
+import sentry_sdk
 from botocore.exceptions import ClientError as BotoClientError
 from dateutil import parser
 from flask import current_app
+from notifications_utils.eventlet import EventletTimeout
+from notifications_utils.exception_handling import extract_reraise_chained_exception
 
 from app.utils.hasher import Hasher
 
@@ -46,6 +49,7 @@ class DocumentStore:
     def init_app(self, app):
         self.bucket = app.config["DOCUMENTS_BUCKET"]
 
+    @extract_reraise_chained_exception(EventletTimeout)
     def _get_document_tags(self, service_id, document_id):
         try:
             return {
@@ -89,6 +93,8 @@ class DocumentStore:
         if effective_expiry_date < date.today():
             raise DocumentExpired("The document is no longer available")
 
+    @extract_reraise_chained_exception(EventletTimeout)
+    @sentry_sdk.trace
     def put(
         self, service_id, document_stream, *, mimetype, confirmation_email=None, retention_period=None, filename=None
     ):
@@ -106,9 +112,11 @@ class DocumentStore:
         if confirmation_email:
             hashed_recipient_email = self._hasher.hash(confirmation_email)
             extra_kwargs["Metadata"]["hashed-recipient-email"] = hashed_recipient_email
+            extra = {"service_id": service_id, "document_id": document_id}
             current_app.logger.info(
                 "Enabling email confirmation flow for %(service_id)s/%(document_id)s",
-                {"service_id": service_id, "document_id": document_id},
+                extra,
+                extra=extra,
             )
 
         tags = {
@@ -118,9 +126,11 @@ class DocumentStore:
 
         if retention_period:
             tags["retention-period"] = retention_period
+            extra = {"service_id": service_id, "document_id": document_id, "retention_period": retention_period}
             current_app.logger.info(
                 "Setting custom retention period for %(service_id)s/%(document_id)s: %(retention_period)s",
-                {"service_id": service_id, "document_id": document_id, "retention_period": retention_period},
+                extra,
+                extra=extra,
             )
 
         extra_kwargs["Tagging"] = urlencode(tags)
@@ -160,12 +170,13 @@ class DocumentStore:
         try:
             tags = self._get_document_tags(service_id, document_id)
             self.check_for_blocked_document(tags)
-            s3_response = self.s3.get_object(
-                Bucket=self.bucket,
-                Key=self.get_document_key(service_id, document_id),
-                SSECustomerKey=decryption_key,
-                SSECustomerAlgorithm="AES256",
-            )
+            with extract_reraise_chained_exception(EventletTimeout):
+                s3_response = self.s3.get_object(
+                    Bucket=self.bucket,
+                    Key=self.get_document_key(service_id, document_id),
+                    SSECustomerKey=decryption_key,
+                    SSECustomerAlgorithm="AES256",
+                )
             self.check_for_expired_document(s3_response, tags)
 
         except BotoClientError as e:
@@ -189,12 +200,13 @@ class DocumentStore:
         try:
             tags = self._get_document_tags(service_id, document_id)
             self.check_for_blocked_document(tags)
-            s3_response = self.s3.head_object(
-                Bucket=self.bucket,
-                Key=self.get_document_key(service_id, document_id),
-                SSECustomerKey=decryption_key,
-                SSECustomerAlgorithm="AES256",
-            )
+            with extract_reraise_chained_exception(EventletTimeout):
+                s3_response = self.s3.head_object(
+                    Bucket=self.bucket,
+                    Key=self.get_document_key(service_id, document_id),
+                    SSECustomerKey=decryption_key,
+                    SSECustomerAlgorithm="AES256",
+                )
             self.check_for_expired_document(s3_response, tags)
 
             available_until = self._get_effective_expiry_date(s3_response, tags)
@@ -289,12 +301,13 @@ class DocumentStore:
         try:
             tags = self._get_document_tags(service_id, document_id)
             self.check_for_blocked_document(tags)
-            s3_response = self.s3.head_object(
-                Bucket=self.bucket,
-                Key=self.get_document_key(service_id, document_id),
-                SSECustomerKey=decryption_key,
-                SSECustomerAlgorithm="AES256",
-            )
+            with extract_reraise_chained_exception(EventletTimeout):
+                s3_response = self.s3.head_object(
+                    Bucket=self.bucket,
+                    Key=self.get_document_key(service_id, document_id),
+                    SSECustomerKey=decryption_key,
+                    SSECustomerAlgorithm="AES256",
+                )
             self.check_for_expired_document(s3_response, tags)
         except (DocumentBlocked, DocumentExpired):
             return False

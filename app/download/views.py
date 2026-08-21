@@ -8,6 +8,7 @@ from flask import (
     send_file,
 )
 from notifications_utils.base64_uuid import base64_to_bytes
+from notifications_utils.file_types import extension_from_mime_type, mime_type_from_extension
 from notifications_utils.recipient_validation.errors import InvalidEmailError
 
 from app import document_store, redis_client
@@ -46,7 +47,13 @@ def get_redirect_url_if_user_not_authenticated(request, document):
 
     url = get_frontend_download_url(service_id, document_id, base64_to_bytes(request.args["key"]))
 
-    current_app.logger.warning("could not verify cookie for service %s document %s", service_id, document_id)
+    extra = {
+        "service_id": service_id,
+        "document_id": document_id,
+    }
+    current_app.logger.warning(
+        "Could not verify cookie for service %(service_id)s document %(document_id)s", extra, extra=extra
+    )
     return redirect(url)
 
 
@@ -83,11 +90,11 @@ def download_document(service_id, document_id, extension=None):
         return redirect
 
     if filename := document["metadata"].get("filename"):
-        extension = split_filename(filename, dotted=False)[1]
-        mimetype = current_app.config["FILE_EXTENSIONS_TO_MIMETYPES"][extension]
+        extension = split_filename(filename, dotted=False)[1].lower()
+        mimetype = mime_type_from_extension(extension)
     else:
         mimetype = document["mimetype"]
-        extension = current_app.config["MIME_TYPES_TO_FILE_EXTENSIONS"][mimetype]
+        extension = extension_from_mime_type(mimetype)
         filename = f"{document_id}.{extension}"
 
     send_file_kwargs = {
@@ -141,7 +148,7 @@ def get_document_metadata(service_id, document_id):
         ),
         "confirm_email": metadata["confirm_email"],
         "size_in_bytes": metadata["size"],
-        "file_extension": current_app.config["MIME_TYPES_TO_FILE_EXTENSIONS"][metadata["mimetype"]],
+        "file_extension": extension_from_mime_type(metadata["mimetype"]),
         "filename": metadata["filename"],
         "available_until": metadata["available_until"],
     }

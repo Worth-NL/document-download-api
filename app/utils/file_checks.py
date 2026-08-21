@@ -1,11 +1,12 @@
-import mimetypes
 from base64 import b64decode, binascii
 from hashlib import sha1
 from io import BytesIO
 
+import sentry_sdk
 from flask import abort, current_app
 from notifications_utils.clients.antivirus.antivirus_client import AntivirusError
 from notifications_utils.clients.redis import RequestCache
+from notifications_utils.file_types import EXTENSIONS, is_allowed_mime_type, mime_type_from_extension
 from notifications_utils.recipient_validation.errors import InvalidEmailError
 
 from app import antivirus_client, redis_client
@@ -51,11 +52,8 @@ class UploadedFile:
         except (binascii.Error, ValueError) as e:
             raise AntivirusAndMimeTypeCheckError("Document is not base64 encoded") from e
 
-        if len(raw_content) > current_app.config["MAX_DECODED_FILE_SIZE"]:
-            abort(413)
-
         return cls(
-            file_data=BytesIO(raw_content),
+            file_data=raw_content,
             is_csv=data.get("is_csv"),
             confirmation_email=data.get("confirmation_email"),
             retention_period=data.get("retention_period"),
@@ -116,10 +114,13 @@ class UploadedFile:
 
     @property
     def file_data(self):
-        return self._file_data
+        return BytesIO(self._file_data)
 
     @file_data.setter
     def file_data(self, value):
+        if len(value) > current_app.config["MAX_DECODED_FILE_SIZE"]:
+            abort(413)
+
         self._file_data = value
         self.mimetype = self.mimetype_deserialised()
 
@@ -141,7 +142,7 @@ class UploadedFile:
     def file_extension(self):
         if not self.filename:
             return
-        return split_filename(self.filename, dotted=True)[1]
+        return split_filename(self.filename, dotted=False)[1].lower()
 
     def mimetype_deserialised(self):
         result = self.mimetype_serialised(self.file_data_hash)
@@ -152,6 +153,7 @@ class UploadedFile:
             )
         return result["success"]["mimetype"]
 
+    @sentry_sdk.trace
     @cache.set("file-checks-{file_data_hash}", ttl_in_seconds=86_400)
     def mimetype_serialised(self, file_data_hash):
         if file_data_hash != self.file_data_hash:
@@ -165,22 +167,28 @@ class UploadedFile:
     @property
     def _mimetype(self):
         if self.filename:
-            mimetype = mimetypes.types_map[self.file_extension]
+            mimetype = mime_type_from_extension(self.file_extension)
+            detected_mimetype = get_mime_type(self.file_data)
+            if detected_mimetype != mimetype:
+                current_app.logger.warning(
+                    "Mimetypes don't match give filename derived mimetype  %s and detected mimetype %s",
+                    mimetype,
+                    detected_mimetype,
+                )
         else:
             mimetype = get_mime_type(self.file_data)
             # Our mimetype auto-detection sometimes resolves CSV content as text/plain, so we use
             # an explicit POST body parameter `is_csv` from the caller to resolve it as text/csv
             if self.is_csv and mimetype == "text/plain":
                 mimetype = "text/csv"
-        if mimetype not in current_app.config["MIME_TYPES_TO_FILE_EXTENSIONS"]:
-            allowed_file_types = ", ".join(
-                sorted({f"'.{x}'" for x in current_app.config["FILE_EXTENSIONS_TO_MIMETYPES"].keys()})
-            )
+        if not is_allowed_mime_type(mimetype):
+            allowed_file_types = ", ".join(sorted({f"'.{x}'" for x in EXTENSIONS}))
             raise FiletypeError(
                 message=f"Unsupported file type '{mimetype}'. Supported types are: {allowed_file_types}"
             )
         return mimetype
 
+    @sentry_sdk.trace
     def do_virus_scan(self):
         if not current_app.config["ANTIVIRUS_ENABLED"]:
             return
