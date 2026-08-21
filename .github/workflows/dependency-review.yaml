@@ -30,7 +30,6 @@ jobs:
      - name: Install pip-audit
        run: pip install pip-audit
      - name: Audit NL requirements
-       id: audit
        run: |
          set +e
          # Git-pinned deps (e.g. the notifications-utils NL fork) have no PyPI/OSV
@@ -42,20 +41,22 @@ jobs:
            --format=markdown --output=/tmp/pip-audit-raw.md
          exit_code=$?
          {
-           echo "_Note: git-pinned dependencies (e.g. the notifications-utils NL fork) aren't on PyPI/OSV and can't be checked here — excluded from this scan._"
+           echo "_Advisory only — this check never blocks merging. pip-audit has no severity data (see"
+           echo "[pypa/pip-audit#654](https://github.com/pypa/pip-audit/issues/654)), so findings aren't"
+           echo "filtered by severity here; high/critical enforcement across all requirements files still"
+           echo "comes from the dependency-review job above. Git-pinned dependencies (e.g. the"
+           echo "notifications-utils NL fork) aren't on PyPI/OSV and can't be checked — excluded from this scan._"
            echo
            if [ -s /tmp/pip-audit-raw.md ]; then
              cat /tmp/pip-audit-raw.md
+           elif [ "$exit_code" -eq 0 ]; then
+             echo "No known vulnerabilities found."
            else
-             echo "pip-audit failed to produce a report (exit $exit_code) — check the workflow logs."
+             echo "pip-audit failed to run (exit $exit_code) — check the workflow logs."
            fi
          } > pip-audit-report.md
-         echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
      - name: Comment on PR
        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405
        with:
          header: pip-audit (NL requirements)
          path: pip-audit-report.md
-     - name: Fail if vulnerabilities found
-       if: steps.audit.outputs.exit_code != '0'
-       run: exit 1
