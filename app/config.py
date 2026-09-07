@@ -14,29 +14,6 @@ class Config:
 
     DOCUMENTS_BUCKET = os.getenv("MULTIREGION_ACCESSPOINT_ARN", os.environ.get("DOCUMENTS_BUCKET"))
 
-    # map of MIME TYPE to file extension.
-    # warning! order matters here - when we convert this tuple of tuples to a dict, and the program runs into identical
-    # keys, it will choose the last pair from the top.
-    # So right now it will choose "application/rtf" for "rtf" extension, and "jpeg" for "image/jpeg" mimetype.
-    ALLOWED_FILE_TYPES = (
-        ("application/pdf", "pdf"),
-        ("text/csv", "csv"),
-        ("text/plain", "txt"),
-        ("application/json", "json"),
-        ("application/msword", "doc"),
-        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
-        ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
-        ("application/vnd.oasis.opendocument.text", "odt"),
-        ("text/rtf", "rtf"),
-        ("application/rtf", "rtf"),
-        ("image/jpeg", "jpg"),
-        ("image/jpeg", "jpeg"),
-        ("image/png", "png"),
-    )
-
-    FILE_EXTENSIONS_TO_MIMETYPES = {v: k for k, v in ALLOWED_FILE_TYPES}
-    MIME_TYPES_TO_FILE_EXTENSIONS = dict(ALLOWED_FILE_TYPES)
-
     MAX_CONTENT_LENGTH = 3 * 1024 * 1024  # 3MiB: Enforced by Flask/Werkzeug to generously allow for b64 size inflation
     MAX_DECODED_FILE_SIZE = (2 * 1024 * 1024) + 1024  # ~2MiB: Enforced by us - max file size after b64decode
     MAX_CUSTOM_FILENAME_LENGTH = 100
@@ -117,6 +94,20 @@ class DevNL(ConfigNL):
 
     DOCUMENTS_BUCKET = f"{NL_PREFIX}-{NOTIFY_ENVIRONMENT}-document-download"
 
+    # Same gap as ANTIVIRUS_ENABLED below: upstream's (NL-unused) Development
+    # class hardcodes a dev SECRET_KEY, while Config only reads it from the
+    # environment and the local .env doesn't set one. Without it Flask's
+    # get_signing_serializer() returns None, so sign_service_and_document_id
+    # raises AttributeError and confirm-email-address authentication 500s.
+    # Env still wins, so deployed configs keep supplying a real secret.
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-notify-secret-key")
+
+    # ANTIVIRUS_ENABLED=0 in .env has no effect on its own -- Config.ANTIVIRUS_ENABLED
+    # is a hardcoded True, not env-var-driven, so DevNL must override it explicitly
+    # (matching upstream's own, NL-unused Development class) or every upload always
+    # calls the real ClamAV-backed notifications-antivirus service.
+    ANTIVIRUS_ENABLED = False
+
 
 class TestNL(ConfigNL):
     NOTIFY_ENVIRONMENT = "test"
@@ -146,10 +137,9 @@ class ProdNL(ConfigNL):
 
 
 configs = {
-    "development": Development,
-    "devnl": DevNL,
+    "development": DevNL,
     "test": Test,
     "testnl": TestNL,
     "acceptance": AccNL,
-    "production": ProdNL
+    "production": ProdNL,
 }

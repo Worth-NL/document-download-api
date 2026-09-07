@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from notifications_utils.clients.antivirus.antivirus_client import AntivirusError
 
-import app
 from app.upload.views import UploadedFile
 from app.utils.file_checks import AntivirusAndMimeTypeCheckError
 
@@ -209,67 +208,79 @@ def test_unauthorized_document_upload(client):
 
 
 @pytest.mark.parametrize(
-    "file_name,extra_form_data,expected_mimetype",
+    "file_name,extra_form_data,expected_mimetype,expected_extension",
     (
         (
             "test.csv",
             {"is_csv": True},
             "text/csv",
+            "csv",
         ),
         (
             "test.csv",
             {"is_csv": False},
             "text/plain",
+            "txt",
         ),
         (
             "test.csv",
             {},
             "text/plain",
+            "txt",
         ),
         (
             "test_longer.csv",
             {"is_csv": True},
             "text/csv",
+            "csv",
         ),
         (
             "test_longer.csv",
             {"is_csv": False},
             "text/csv",
+            "csv",
         ),
         (
             "test_longer.csv",
             {},
             "text/csv",
+            "csv",
         ),
         (
             "test.txt",
             {"is_csv": True},
             "text/csv",
+            "csv",
         ),
         (
             "test.txt",
             {"is_csv": False},
             "text/plain",
+            "txt",
         ),
         (
             "test.txt",
             {},
             "text/plain",
+            "txt",
         ),
         (
             "test.pdf",
             {"is_csv": True},
             "application/pdf",
+            "pdf",
         ),
         (
             "test.pdf",
             {"is_csv": False},
             "application/pdf",
+            "pdf",
         ),
         (
             "test.pdf",
             {},
             "application/pdf",
+            "pdf",
         ),
     ),
 )
@@ -281,6 +292,7 @@ def test_document_upload_csv_handling(
     file_name,
     extra_form_data,
     expected_mimetype,
+    expected_extension,
 ):
     store.put.return_value = {
         "id": "ffffffff-ffff-ffff-ffff-ffffffffffff",
@@ -315,8 +327,7 @@ def test_document_upload_csv_handling(
                 [
                     "http://download.document-download-frontend-test",
                     "/services/00000000-0000-0000-0000-000000000000",
-                    "/documents/ffffffff-ffff-ffff-ffff-ffffffffffff",
-                    f".{app.config['MIME_TYPES_TO_FILE_EXTENSIONS'][expected_mimetype]}",
+                    f"/documents/ffffffff-ffff-ffff-ffff-ffffffffffff.{expected_extension}",
                     "?key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 ]
             ),
@@ -325,7 +336,25 @@ def test_document_upload_csv_handling(
     }
 
 
-@pytest.mark.parametrize("extension, expected_mimetype", app.config.Config.FILE_EXTENSIONS_TO_MIMETYPES.items())
+@pytest.mark.parametrize(
+    "filename, extension, expected_mimetype",
+    (
+        ("test.pdf", "pdf", "application/pdf"),
+        ("test_capitalised_initial_character_extension.Pdf", "Pdf", "application/pdf"),
+        ("test_capitalise_extension.PDF", "PDF", "application/pdf"),
+        ("test.csv", "csv", "text/csv"),
+        ("test.txt", "txt", "text/plain"),
+        ("test.json", "json", "application/json"),
+        ("test.doc", "doc", "application/msword"),
+        ("test.docx", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ("test.xlsx", "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        ("test.odt", "odt", "application/vnd.oasis.opendocument.text"),
+        ("test.rtf", "rtf", "application/rtf"),
+        ("test.jpg", "jpg", "image/jpeg"),
+        ("test.jpeg", "jpeg", "image/jpeg"),
+        ("test.png", "png", "image/png"),
+    ),
+)
 @pytest.mark.parametrize("is_csv", (True, False))  # `is_csv` should just be ignored when `filename` is provided
 def test_document_upload_filename_handling(
     app,
@@ -333,6 +362,7 @@ def test_document_upload_filename_handling(
     store,
     antivirus,
     expected_mimetype,
+    filename,
     extension,
     is_csv,
 ):
@@ -344,7 +374,7 @@ def test_document_upload_filename_handling(
     antivirus.scan.return_value = True
 
     file_name = f"test-file.{extension}"
-    with open(Path(__file__).parent.parent / "sample_files" / f"test.{extension}", "rb") as f:
+    with open(Path(__file__).parent.parent / "sample_files" / filename, "rb") as f:
         response = client.post(
             "/services/00000000-0000-0000-0000-000000000000/documents",
             json={
@@ -375,7 +405,7 @@ def test_document_upload_filename_handling(
                     "http://download.document-download-frontend-test",
                     "/services/00000000-0000-0000-0000-000000000000",
                     "/documents/ffffffff-ffff-ffff-ffff-ffffffffffff",
-                    f".{extension}",
+                    f".{extension}".lower(),
                     "?key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 ]
             ),

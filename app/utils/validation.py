@@ -1,6 +1,7 @@
 import re
 
 from flask import current_app
+from notifications_utils.file_types import EXTENSIONS, is_allowed_file_extension
 from notifications_utils.recipient_validation.email_address import validate_and_format_email_address
 from notifications_utils.recipient_validation.errors import InvalidEmailError
 
@@ -45,9 +46,9 @@ def validate_filename(filename):
     if "." not in filename:
         raise ValueError("`filename` must end with a file extension. For example, filename.csv")
 
-    extension = split_filename(filename, dotted=False)[1]
-    if extension not in current_app.config["FILE_EXTENSIONS_TO_MIMETYPES"]:
-        allowed_file_types = ", ".join(sorted({f"'.{x}'" for x in current_app.config["FILE_EXTENSIONS_TO_MIMETYPES"]}))
+    extension = split_filename(filename, dotted=False)[1].lower()
+    if not is_allowed_file_extension(extension):
+        allowed_file_types = ", ".join(sorted({f"'.{x}'" for x in EXTENSIONS}))
         raise ValueError(f"Unsupported file type '.{extension}'. Supported types are: {allowed_file_types}")
 
     return filename
