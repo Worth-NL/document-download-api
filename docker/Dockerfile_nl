@@ -18,6 +18,8 @@ RUN apt-get update \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
+RUN python -m pip uninstall -y pip
+
 WORKDIR /home/vcap/app
 
 ##### Python Build Image #####################################################
@@ -34,7 +36,7 @@ RUN echo "Install OS dependencies for python app requirements" &&  \
 COPY requirements_nl.txt ./
 
 RUN echo "Installing python dependencies" && \
-    python3 -m venv /opt/venv && \
+    python3 -m venv --without-pip /opt/venv && \
     uv pip sync --python /opt/venv/bin/python requirements_nl.txt
 
 COPY . .
