@@ -11,3 +11,7 @@ argon2-cffi~=25.1
 notifications-utils @ git+https://github.com/Worth-NL/notifynl-utils.git@101.3.2
 
 sentry-sdk[flask]~=1.45
+
+# [NOTIFYNL] Vulnerability patches
+pypdf>=6.16.1
+requests>=2.33.0
