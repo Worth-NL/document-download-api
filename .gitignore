@@ -152,3 +152,6 @@ dmypy.json
 # Local
 docker-compose.yml
 application.log.json
+
+### Vulnerability scan ###
+.vulnerability-scan/
