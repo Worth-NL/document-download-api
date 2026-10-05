@@ -14,7 +14,7 @@
         {
             "label": "Install DD-API python requirements",
             "type": "shell",
-            "command": "uv pip install -r requirements_nl_test.txt",
+            "command": "uv pip sync requirements_nl_test.txt",
             "dependsOn": ["Generate DD-API version file"],
             "problemMatcher": [],
             "presentation": {
