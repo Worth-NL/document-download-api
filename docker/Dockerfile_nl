@@ -1,7 +1,5 @@
 FROM python:3.13-slim-trixie AS base
 
-COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
-
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -11,10 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libmagic-dev \
-    curl \
+    libmagic1t64 \
     media-types \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/* /tmp/*
@@ -25,6 +20,8 @@ WORKDIR /home/vcap/app
 
 ##### Python Build Image #####################################################
 FROM base AS python_build
+
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
 
 RUN echo "Install OS dependencies for python app requirements" &&  \
     apt-get update \
@@ -68,6 +65,8 @@ ENTRYPOINT [ "/home/vcap/app/entrypoint.sh" ]
 
 ##### Test Image ##############################################################
 FROM production AS test
+
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
 
 USER root
 RUN echo "Install OS dependencies for test build" \
