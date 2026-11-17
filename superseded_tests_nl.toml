@@ -1,0 +1,9 @@
+[[test]]
+nodeid = "tests/utils/test_mime_types.py::test_get_mime_type[test.zip-application/zip]"
+reason = "libmagic 5.46 (Debian trixie) reports a plain zip as application/octet-stream; zip isn't an allowed type either way"
+counterpart = ["tests/utils/test_mime_types_nl.py::test_get_mime_type_nl[test.zip-application/octet-stream]"]
+
+[[test]]
+nodeid = "tests/utils/test_mime_types.py::test_get_mime_type[test_longer.csv-text/csv]"
+reason = "libmagic 5.46 (Debian trixie) needs 3+ columns for text/csv; get_mime_type_nl restores 2-column CSV detection"
+twin = ["tests/utils/test_mime_types_nl.py::test_get_mime_type_nl[test_longer.csv-text/csv]"]

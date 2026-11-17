@@ -26,7 +26,7 @@ def antivirus(mocker):
     )
 
 
-def _document_upload(client, url, file_content, confirmation_email=None, retention_period=None):
+def _document_upload(client, url, file_content, confirmation_email=None, retention_period=None, filename=None):
     data = {
         "document": base64.b64encode(file_content).decode("utf-8"),
     }
@@ -35,9 +35,25 @@ def _document_upload(client, url, file_content, confirmation_email=None, retenti
         data["confirmation_email"] = confirmation_email
     if retention_period:
         data["retention_period"] = retention_period
+    if filename:
+        data["filename"] = filename
 
     response = client.post(url, json=data)
     return response
+
+
+def test_document_upload_magic_type_not_supported(client, antivirus):
+    url = "/services/12345678-1111-1111-1111-123456789012/documents"
+    file_content = b"\x00binary file contents\n"
+
+    response = _document_upload(client, url, file_content, filename="innocuous.txt")
+
+    assert response.status_code == 400
+    assert response.json["error"] == (
+        "Unsupported file type 'application/octet-stream'. "
+        "Supported types are: '.csv', '.doc', '.docx', '.jpeg', '.jpg', '.json', '.odt', '.pdf', '.png', '.rtf', "
+        "'.txt', '.xlsx'"
+    )
 
 
 def test_document_upload_returns_link_to_frontend(client, store, antivirus):
@@ -412,6 +428,37 @@ def test_document_upload_filename_handling(
         },
         "status": "ok",
     }
+
+
+@pytest.mark.parametrize(
+    "extra_args",
+    (
+        {},
+        {"filename": "example.csv"},
+        {"filename": "example.pdf"},
+        {"is_csv": True},
+        {"is_csv": False},
+        {"is_csv": True, "filename": "example.csv"},
+        {"is_csv": False, "filename": "example.pdf"},
+    ),
+)
+def test_document_upload_empty_file(
+    app,
+    client,
+    store,
+    antivirus,
+    extra_args,
+):
+    response = client.post(
+        "/services/00000000-0000-0000-0000-000000000000/documents",
+        json={
+            "document": base64.b64encode(b"").decode("utf-8"),
+        }
+        | extra_args,
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Document must not be empty"}
 
 
 def test_document_upload_bad_is_csv_value(client):

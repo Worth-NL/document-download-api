@@ -8,6 +8,15 @@ gds-metrics==0.2.4
 argon2-cffi~=25.1
 
 # Run `make bump-utils` to update to the latest version
-notifications-utils @ git+https://github.com/Worth-NL/notifynl-utils.git@101.2.3
+notifications-utils @ git+https://github.com/Worth-NL/notifynl-utils.git@102.0.4
 
-sentry-sdk[flask]~=1.45
+sentry-sdk[flask]~=2.63
+
+# [NOTIFYNL] Vulnerability patches
+pypdf>=6.21.2
+requests>=2.33.0
+urllib3>=2.8.0
+certifi>=2026.10.18
+dnspython>=2.9.0
+werkzeug>=3.1.9
+opentelemetry-api>=1.45.1

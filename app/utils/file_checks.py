@@ -10,8 +10,8 @@ from notifications_utils.file_types import EXTENSIONS, is_allowed_mime_type, mim
 from notifications_utils.recipient_validation.errors import InvalidEmailError
 
 from app import antivirus_client, redis_client
-from app.utils import get_mime_type
 from app.utils.files import split_filename
+from app.utils.mime_types_nl import get_mime_type_nl as get_mime_type
 from app.utils.validation import (
     clean_and_validate_email_address,
     clean_and_validate_retention_period,
@@ -121,6 +121,9 @@ class UploadedFile:
         if len(value) > current_app.config["MAX_DECODED_FILE_SIZE"]:
             abort(413)
 
+        if not value:
+            raise AntivirusAndMimeTypeCheckError("Document must not be empty")
+
         self._file_data = value
         self.mimetype = self.mimetype_deserialised()
 
@@ -164,6 +167,13 @@ class UploadedFile:
         except (AntivirusError, FiletypeError) as e:
             return {"failure": {"error": e.message, "status_code": e.status_code}}
 
+    def check_mimetype_allowed(self, mimetype):
+        if not is_allowed_mime_type(mimetype):
+            allowed_file_types = ", ".join(sorted({f"'.{x}'" for x in EXTENSIONS}))
+            raise FiletypeError(
+                message=f"Unsupported file type '{mimetype}'. Supported types are: {allowed_file_types}"
+            )
+
     @property
     def _mimetype(self):
         if self.filename:
@@ -175,17 +185,15 @@ class UploadedFile:
                     mimetype,
                     detected_mimetype,
                 )
+                self.check_mimetype_allowed(detected_mimetype)
         else:
             mimetype = get_mime_type(self.file_data)
             # Our mimetype auto-detection sometimes resolves CSV content as text/plain, so we use
             # an explicit POST body parameter `is_csv` from the caller to resolve it as text/csv
             if self.is_csv and mimetype == "text/plain":
                 mimetype = "text/csv"
-        if not is_allowed_mime_type(mimetype):
-            allowed_file_types = ", ".join(sorted({f"'.{x}'" for x in EXTENSIONS}))
-            raise FiletypeError(
-                message=f"Unsupported file type '{mimetype}'. Supported types are: {allowed_file_types}"
-            )
+
+        self.check_mimetype_allowed(mimetype)
         return mimetype
 
     @sentry_sdk.trace
