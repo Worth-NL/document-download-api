@@ -10,8 +10,8 @@ from notifications_utils.file_types import EXTENSIONS, is_allowed_mime_type, mim
 from notifications_utils.recipient_validation.errors import InvalidEmailError
 
 from app import antivirus_client, redis_client
-from app.utils import get_mime_type
 from app.utils.files import split_filename
+from app.utils.mime_types_nl import get_mime_type_nl as get_mime_type
 from app.utils.validation import (
     clean_and_validate_email_address,
     clean_and_validate_retention_period,
